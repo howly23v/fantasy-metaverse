@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ Fantasy Metaverse — AI RPG</title>
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a0a2e;color:#f0e6d3;font-family:'Georgia',serif;overflow:hidden;user-select:none}
+canvas{display:block}
+
+/* ── API Key Modal ─────────────────────────────────────────────── */
+#modal{
+  position:fixed;inset:0;background:rgba(0,0,0,0.88);
+  display:flex;align-items:center;justify-content:center;z-index:200
+}
+.mbox{
+  background:linear-gradient(135deg,#2a1f4a,#160e2e);
+  border:2px solid #8b6914;border-radius:14px;padding:44px 36px;
+  max-width:480px;width:92%;text-align:center;box-shadow:0 0 60px #8b691440
+}
+.mbox h1{font-size:2.1em;color:#f0c060;text-shadow:0 0 24px #f0a020;margin-bottom:6px}
+.mbox .sub{color:#f0c060;font-size:1.05em;margin-bottom:18px}
+.mbox p{color:#b0a090;margin:8px 0;font-size:0.88em;line-height:1.6}
+.mbox input{
+  width:100%;padding:11px 14px;background:#0c0820;
+  border:1px solid #5a4a2a;color:#f0e6d3;font-size:0.95em;
+  border-radius:7px;margin:10px 0;outline:none
+}
+.mbox input:focus{border-color:#f0c060}
+.btn-g{
+  background:linear-gradient(135deg,#8b6914,#d4a020);color:#fff;
+  border:none;padding:13px 30px;font-size:1.05em;border-radius:7px;
+  cursor:pointer;font-family:'Georgia',serif;margin:6px;
+  transition:all 0.2s;box-shadow:0 4px 18px #8b691460
+}
+.btn-g:hover{transform:translateY(-2px);box-shadow:0 6px 24px #f0b03090}
+.btn-s{
+  background:transparent;color:#7a6a5a;border:1px solid #4a3a2a;
+  padding:9px 22px;font-size:0.88em;border-radius:7px;cursor:pointer;margin:6px
+}
+.btn-s:hover{color:#b0a090;border-color:#7a6a5a}
+.feature-list{
+  display:flex;gap:8px;justify-content:center;margin:16px 0;flex-wrap:wrap
+}
+.feat{
+  background:#1a1030;border:1px solid #3a2a50;border-radius:20px;
+  padding:5px 12px;font-size:0.78em;color:#c0a0e0
+}
+.mbox .note{font-size:0.72em;color:#5a4a3a;margin-top:16px}
+
+/* ── Loading ───────────────────────────────────────────────────── */
+#loading{
+  position:fixed;inset:0;background:#1a0a2e;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:150
+}
+#loading h2{color:#f0c060;font-size:1.9em;margin-bottom:14px}
+#loading p{color:#7a6a5a;font-size:0.9em;margin-top:8px}
+.pbar{width:280px;height:7px;background:#1e1030;border-radius:4px;margin:14px 0;overflow:hidden}
+.pfill{height:100%;background:linear-gradient(90deg,#8b6914,#f0c060);border-radius:4px;
+  animation:ldanim 2.5s ease-in-out infinite}
+@keyframes ldanim{0%{width:8%}50%{width:82%}100%{width:95%}}
+
+/* ── HUD ───────────────────────────────────────────────────────── */
+#hud{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:12px 16px;pointer-events:none;z-index:50
+}
+#hud-left{display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+
+.hud-panel{
+  background:rgba(10,5,25,0.82);border:1px solid #5a4020;
+  border-radius:8px;padding:8px 14px;backdrop-filter:blur(4px);
+  box-shadow:0 2px 12px #00000080
+}
+#clock{font-size:0.78em;color:#d0a040;letter-spacing:1px}
+
+/* Quest log */
+#quest-panel{max-width:280px}
+#quest-title{color:#f0c060;font-size:0.82em;margin-bottom:4px}
+#quest-desc{color:#c0a880;font-size:0.74em;line-height:1.5;max-width:260px}
+#quest-reward{color:#80e060;font-size:0.72em;margin-top:3px}
+
+/* Companion hint */
+#companion-hint{
+  position:fixed;bottom:120px;left:50%;transform:translateX(-50%);
+  background:rgba(10,20,50,0.88);border:1px solid #4080c0;
+  border-radius:20px;padding:8px 18px;font-size:0.82em;color:#c0e8ff;
+  pointer-events:none;z-index:60;opacity:0;
+  transition:opacity 0.4s;max-width:400px;text-align:center
+}
+#companion-hint.visible{opacity:1}
+
+/* ── Dialogue Box ─────────────────────────────────────────────── */
+#dialogue{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:linear-gradient(0deg,rgba(8,4,20,0.97),rgba(14,8,30,0.93));
+  border-top:2px solid #8b6914;padding:0;
+  transform:translateY(100%);transition:transform 0.3s ease;
+  max-height:42vh
+}
+#dialogue.open{transform:translateY(0)}
+#dialogue-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;background:rgba(20,12,40,0.9);border-bottom:1px solid #4a3010
+}
+#npc-name-badge{
+  display:flex;align-items:center;gap:10px
+}
+#npc-avatar{width:32px;height:32px;border-radius:50%;border:2px solid #8b6914;object-fit:cover}
+#npc-name{font-size:1.05em;color:#f0c060}
+#npc-role{font-size:0.76em;color:#907850;margin-left:4px}
+#dialogue-close{
+  background:none;border:1px solid #5a4020;color:#907850;
+  border-radius:4px;padding:3px 10px;cursor:pointer;font-size:0.82em
+}
+#dialogue-close:hover{color:#f0c060;border-color:#f0c060}
+
+#dialogue-history{
+  padding:12px 18px;height:120px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:8px;
+  scrollbar-width:thin;scrollbar-color:#4a3020 transparent
+}
+.msg-npc{color:#f0d8a0;font-size:0.88em;line-height:1.5;position:relative;padding-left:16px}
+.msg-npc::before{content:'▶';position:absolute;left:0;color:#8b6914;font-size:0.7em;top:3px}
+.msg-player{color:#90c0f0;font-size:0.85em;text-align:right;font-style:italic}
+.msg-system{color:#60a060;font-size:0.78em;text-align:center;opacity:0.7}
+.ai-badge{font-size:0.65em;background:#2a1a40;border-radius:3px;padding:1px 5px;
+  color:#9070c0;margin-left:6px;vertical-align:middle}
+
+#dialogue-input-row{
+  display:flex;padding:10px 18px 14px;gap:10px;align-items:center;
+  border-top:1px solid #2a1a0a
+}
+#player-input{
+  flex:1;padding:9px 14px;background:#0a0818;
+  border:1px solid #4a3820;color:#f0e6d3;font-size:0.9em;
+  border-radius:20px;outline:none;font-family:inherit
+}
+#player-input:focus{border-color:#f0c060}
+#send-btn{
+  background:linear-gradient(135deg,#6a4a10,#b08020);color:#fff;
+  border:none;padding:9px 18px;border-radius:20px;cursor:pointer;
+  font-size:0.88em;white-space:nowrap;transition:0.2s
+}
+#send-btn:hover{background:linear-gradient(135deg,#a07020,#e0b030)}
+#send-btn:disabled{opacity:0.45;cursor:not-allowed}
+
+/* ── Controls hint ─────────────────────────────────────────────── */
+#controls{
+  position:fixed;bottom:14px;right:16px;
+  background:rgba(10,5,20,0.7);border:1px solid #3a2a10;
+  border-radius:8px;padding:8px 14px;font-size:0.72em;color:#605040;
+  pointer-events:none;z-index:50;line-height:1.8
+}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+  API KEY MODAL
+================================================================ -->
+<div id="modal">
+  <div class="mbox">
+    <h1>⚔️ Fantasy Metaverse</h1>
+    <p class="sub">AI駆動のアイソメトリックRPG</p>
+    <div class="feature-list">
+      <span class="feat">🗺️ アイソメトリック世界</span>
+      <span class="feat">🤖 AI NPC会話</span>
+      <span class="feat">📜 自動クエスト生成</span>
+      <span class="feat">🧚 仲間AI・ルナ</span>
+    </div>
+    <p>Google AI Studio APIキーを入力すると、村人たちがリアルなAIで会話します。<br>
+       なくても、事前生成された会話で十分楽しめます！</p>
+    <p style="font-size:0.8em;margin-bottom:4px">
+      APIキーは <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#f0c060">aistudio.google.com/apikey</a> で取得できます
+    </p>
+    <input type="password" id="api-key-input" placeholder="AIza... （省略可）" />
+    <br>
+    <button class="btn-g" onclick="startGame(document.getElementById('api-key-input').value.trim())">
+      🗡️ 冒険を始める
+    </button>
+    <button class="btn-s" onclick="startGame('')">AIなしで体験</button>
+    <p class="note">
+      ※ APIキーはlocalStorageに保存されません（このセッション限り）<br>
+      ※ Gemini API（Google AI Studio）を使用しています
+    </p>
+  </div>
+</div>
+
+<!-- ================================================================
+  LOADING SCREEN
+================================================================ -->
+<div id="loading" class="hidden">
+  <h2>⚔️ 世界を生成中…</h2>
+  <div class="pbar"><div class="pfill"></div></div>
+  <p id="load-msg">マップを描画しています…</p>
+</div>
+
+<!-- ================================================================
+  GAME CONTAINER
+================================================================ -->
+<div id="game-container"></div>
+
+<!-- ================================================================
+  HUD (always visible during gameplay)
+================================================================ -->
+<div id="hud" class="hidden">
+  <div id="hud-left">
+    <div class="hud-panel" id="clock">☀️ 12:00 昼</div>
+    <div class="hud-panel" id="quest-panel">
+      <div id="quest-title">📜 クエストなし</div>
+      <div id="quest-desc">—</div>
+      <div id="quest-reward"></div>
+    </div>
+  </div>
+  <div id="hud-right">
+    <div class="hud-panel" style="font-size:0.8em;color:#a08060;text-align:right">
+      <div>タイルをクリック → 移動</div>
+      <div>NPCをクリック → 会話</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+  COMPANION HINT TOAST
+================================================================ -->
+<div id="companion-hint">🧚 ルナ：…</div>
+
+<!-- ================================================================
+  DIALOGUE BOX
+================================================================ -->
+<div id="dialogue">
+  <div id="dialogue-header">
+    <div id="npc-name-badge">
+      <canvas id="npc-avatar" width="32" height="32"></canvas>
+      <div>
+        <span id="npc-name">NPC</span>
+        <span id="npc-role">—</span>
+      </div>
+    </div>
+    <button id="dialogue-close" onclick="closeDialogueUI()">✕ 閉じる</button>
+  </div>
+  <div id="dialogue-history"></div>
+  <div id="dialogue-input-row">
+    <input id="player-input" type="text" placeholder="話しかける…（Enterで送信）" maxlength="120" />
+    <button id="send-btn" onclick="sendDialogue()">送信</button>
+  </div>
+</div>
+
+<!-- ================================================================
+  CONTROLS HINT
+================================================================ -->
+<div id="controls" class="hidden">
+  クリック：移動 | NPCクリック：会話 | スクロール：ズーム
+</div>
+
+<!-- ================================================================
+  SCRIPTS (load order matters!)
+================================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script src="quest-engine.js"></script>
+<script src="ai-npc.js"></script>
+<script src="game.js"></script>
+
+<script>
+// ── Game lifecycle ───────────────────────────────────────────────
+let gameInstance = null;
+
+const LOADING_MSGS = [
+  'マップを描画しています…',
+  'NPCに命を吹き込んでいます…',
+  'クエストを準備しています…',
+  '仲間のルナを召喚しています…',
+  '世界の準備が整いました！',
+];
+
+function startGame(apiKey) {
+  window.GEMINI_API_KEY = apiKey || '';
+  document.getElementById('modal').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+
+  let mi = 0;
+  const int = setInterval(() => {
+    mi++;
+    if (mi < LOADING_MSGS.length)
+      document.getElementById('load-msg').textContent = LOADING_MSGS[mi];
+    else clearInterval(int);
+  }, 550);
+
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    document.getElementById('controls').classList.remove('hidden');
+    gameInstance = initGame();
+  }, 2800);
+}
+
+// ── HUD update hooks ─────────────────────────────────────────────
+window.updateHUDClock = (text) => {
+  const el = document.getElementById('clock');
+  if (el) el.textContent = text;
+};
+
+window.updateQuestHUD = (quest) => {
+  document.getElementById('quest-title').textContent  = '📜 ' + quest.title;
+  document.getElementById('quest-desc').textContent   = quest.description;
+  document.getElementById('quest-reward').textContent = '報酬：' + quest.reward +
+    '　緊急度：' + quest.urgency;
+};
+
+// ── Companion hint toast ─────────────────────────────────────────
+let compHintTimer = null;
+window.showCompanionHint = (text) => {
+  const el = document.getElementById('companion-hint');
+  el.textContent = '🧚 ルナ：' + text;
+  el.classList.add('visible');
+  if (compHintTimer) clearTimeout(compHintTimer);
+  compHintTimer = setTimeout(() => el.classList.remove('visible'), 6000);
+};
+
+// ── Dialogue UI ──────────────────────────────────────────────────
+let currentNPC   = null;
+let onSendReply  = null;
+
+window.openDialogueUI = (npc, replyCallback) => {
+  currentNPC  = npc;
+  onSendReply = replyCallback;
+
+  document.getElementById('npc-name').textContent = npc.name;
+  document.getElementById('npc-role').textContent = npc.role;
+
+  // Draw mini avatar on canvas
+  const canvas = document.getElementById('npc-avatar');
+  const ctx    = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 32, 32);
+  ctx.fillStyle = npc.bodyCol;
+  ctx.beginPath(); ctx.arc(16, 20, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = npc.headCol;
+  ctx.beginPath(); ctx.arc(16, 10, 9, 0, Math.PI * 2); ctx.fill();
+
+  // Clear history and add greeting
+  const hist = document.getElementById('dialogue-history');
+  hist.innerHTML = '';
+  addDialogueMsg('npc', npc.greeting);
+
+  document.getElementById('dialogue').classList.add('open');
+  document.getElementById('player-input').focus();
+};
+
+function closeDialogueUI() {
+  document.getElementById('dialogue').classList.remove('open');
+  // Tell the game scene dialogue is closed
+  if (gameInstance) {
+    const scene = gameInstance.scene.getScene('GameScene');
+    if (scene) { scene.dialogueOpen = false; scene.activeNPC = null; }
+  }
+}
+
+function addDialogueMsg(type, text, source) {
+  const hist = document.getElementById('dialogue-history');
+  const div  = document.createElement('div');
+  if (type === 'npc') {
+    div.className = 'msg-npc';
+    div.textContent = text;
+    if (source === 'gemini') {
+      const badge = document.createElement('span');
+      badge.className = 'ai-badge'; badge.textContent = 'AI';
+      div.appendChild(badge);
+    }
+  } else if (type === 'player') {
+    div.className = 'msg-player';
+    div.textContent = `あなた：${text}`;
+  } else {
+    div.className = 'msg-system';
+    div.textContent = text;
+  }
+  hist.appendChild(div);
+  hist.scrollTop = hist.scrollHeight;
+}
+
+window.showNPCReplyInUI = (npc, text, source) => {
+  addDialogueMsg('npc', text, source);
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('player-input').disabled = false;
+  document.getElementById('player-input').focus();
+};
+
+async function sendDialogue() {
+  const input = document.getElementById('player-input');
+  const text  = input.value.trim();
+  if (!text || !onSendReply) return;
+
+  addDialogueMsg('player', text);
+  input.value = '';
+  document.getElementById('send-btn').disabled = true;
+  input.disabled = true;
+
+  addDialogueMsg('system', `${currentNPC.name}が考えています…`);
+
+  await onSendReply(text);
+}
+
+// Send on Enter
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.getElementById('dialogue').classList.contains('open')) {
+    sendDialogue();
+  }
+  if (e.key === 'Escape') closeDialogueUI();
+});
+</script>
+</body>
+</html>
